@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class AuthController extends Controller
@@ -60,7 +61,8 @@ class AuthController extends Controller
             User::query()->create([
                 'email' => $email,
                 'name' => $name,
-                'password' => Hash::make($password)
+                'password' => Hash::make($password),
+                'photo' => '/img/default.png'
             ]);
             DB::commit();
             return $this->login($request);
@@ -117,11 +119,20 @@ class AuthController extends Controller
 
             if (isset($photo) && $photo != ''){
                 //$this->helper->checkExistDirectory("public/profile/");
-                $uploadFileDirectory = "storage/profile/";
-                $image = time().".jpg";
-                file_put_contents($uploadFileDirectory.$image,base64_decode($photo));
-                $path = "/".$uploadFileDirectory.$image;
-                $userData['photo'] = $path;
+//                $uploadFileDirectory = "storage/profile/";
+//                $image = time().".jpg";
+//                file_put_contents($uploadFileDirectory.$image,base64_decode($photo));
+//                $path = "/".$uploadFileDirectory.$image;
+//                $userData['photo'] = $path;
+
+                $storagePath = Storage::disk('local')->getAdapter()->getPathPrefix();
+                $uploadFileDirectory = 'public/profile';
+                $storagePath = $storagePath . $uploadFileDirectory;
+                $this->helper->checkExistDirectory($storagePath);
+                if ($request->hasFile('photo')) {
+                    $pathSavedImage = $request->file('photo')->store($uploadFileDirectory);
+                    $userData['photo'] = str_replace('public','/storage',$pathSavedImage);
+                }
             }
 
             User::query()->where(["id" => $userId])->update($userData);

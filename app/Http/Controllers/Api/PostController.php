@@ -125,20 +125,34 @@ class PostController extends Controller
 
         DB::beginTransaction();
         try {
-            $imagePath = null;
+            $pathSavedImage = null;
             if (isset($photo) && $photo != ''){
-                //$this->helper->checkExistDirectory("public/images/");
-                $uploadFileDirectory = "storage/images/";
-                $image = time().".jpg";
-                file_put_contents($uploadFileDirectory.$image,base64_decode($photo));
-                $imagePath = "/".$uploadFileDirectory.$image;
+//                $uploadFileDirectory = "storage/images/";
+//                $image = time().".jpg";
+//                file_put_contents($uploadFileDirectory.$image,$request->file('photo'));
+//                $imagePath = "/".$uploadFileDirectory.$image;
+
+                $storagePath = Storage::disk('local')->getAdapter()->getPathPrefix();
+                $uploadFileDirectory = 'public/images';
+                $storagePath = $storagePath . $uploadFileDirectory;
+                $this->helper->checkExistDirectory($storagePath);
+                if ($request->hasFile('photo')) {
+                    $pathSavedImage = $request->file('photo')->store($uploadFileDirectory);
+                    $pathSavedImage = str_replace('public','/storage',$pathSavedImage);
+                }
             }
             $post = Post::query()->create([
                 'user_id' => $userId,
                 'description' => $description,
-                'photo' => $imagePath
+                'photo' => $pathSavedImage
             ]);
             $post->user = Auth::user();
+            $post->comments = [];
+            $post->comment_count = 0;
+            $post->like_count = 0;
+            $post->self_like = false;
+            $post->my_self = Auth::user();
+            $post->last_comment = null;
             DB::commit();
             return response()->json(["success" => true, "data" => $post, "message" => "Post created."]);
         } catch (\Exception $e) {
